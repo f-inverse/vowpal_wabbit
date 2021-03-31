@@ -354,7 +354,17 @@ if(BUILD_EXTERNAL_PARSER)
   set(vw_all_sources ${vw_all_sources} ${external_parser_sources})
 endif()
 
-add_library(vw STATIC ${vw_all_sources} ${vw_all_headers})
+if (EMSCRIPTEN)
+  add_executable(vw ${vw_all_sources} ${vw_all_headers})
+  set_target_properties(vw
+    PROPERTIES
+    LINK_FLAGS "-s EXPORT_ALL=1 --no-entry"
+    SUFFIX ".js"
+    COMPILE_FLAGS "-s WASM=1 -s EXPORT_ALL=1")
+else()
+  add_library(vw STATIC ${vw_all_sources} ${vw_all_headers})
+  add_library(VowpalWabbit::vw ALIAS vw)
+endif()
 
 target_link_libraries(vw
   PUBLIC
@@ -378,9 +388,6 @@ if(BUILD_FLATBUFFERS)
       $<BUILD_INTERFACE:FlatbuffersTarget>)
   target_compile_definitions(vw PUBLIC BUILD_FLATBUFFERS)
 endif()
-
-
-add_library(VowpalWabbit::vw ALIAS vw)
 
 if(GCOV)
   target_link_libraries(vw PUBLIC gcov --coverage)
@@ -469,50 +476,52 @@ if(NOT WIN32)
   endif()
 endif()
 
-# build main executable
-add_executable(vw-bin main.cc)
-target_link_libraries(vw-bin PRIVATE VowpalWabbit::vw Boost::program_options)
-set_target_properties(vw-bin PROPERTIES OUTPUT_NAME vw)
-
-if(STATIC_LINK_VW)
-  target_link_libraries(vw-bin PRIVATE ${unix_static_flag})
-endif()
-
-# This is used by Travis to not build vw_c_wrapper, this required <codecvt> which became available in GCC 5.1
-if(NOT DEFINED DO_NOT_BUILD_VW_C_WRAPPER)
+if(NOT EMSCRIPTEN)
+  # build main executable
+  add_executable(vw-bin main.cc)
+  target_link_libraries(vw-bin PRIVATE VowpalWabbit::vw Boost::program_options)
+  set_target_properties(vw-bin PROPERTIES OUTPUT_NAME vw)
+  
   if(STATIC_LINK_VW)
-    add_library(vw_c_wrapper vwdll.cpp)
-  else()
-    add_library(vw_c_wrapper SHARED vwdll.cpp)
+    target_link_libraries(vw-bin PRIVATE ${unix_static_flag})
   endif()
-
-  add_library(VowpalWabbit::vw_c_wrapper ALIAS vw_c_wrapper)
-
-  target_compile_definitions(vw_c_wrapper PUBLIC VWDLL_EXPORTS _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE ZLIB_WINAPI)
-  target_link_libraries(vw_c_wrapper PUBLIC VowpalWabbit::vw)
+  
+  # This is used by Travis to not build vw_c_wrapper, this required <codecvt> which became available in GCC 5.1
+  if(NOT DEFINED DO_NOT_BUILD_VW_C_WRAPPER)
+    if(STATIC_LINK_VW)
+      add_library(vw_c_wrapper vwdll.cpp)
+    else()
+      add_library(vw_c_wrapper SHARED vwdll.cpp)
+    endif()
+  
+    add_library(VowpalWabbit::vw_c_wrapper ALIAS vw_c_wrapper)
+  
+    target_compile_definitions(vw_c_wrapper PUBLIC VWDLL_EXPORTS _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE ZLIB_WINAPI)
+    target_link_libraries(vw_c_wrapper PUBLIC VowpalWabbit::vw)
+    if(VW_INSTALL)
+      install(
+        TARGETS vw_c_wrapper
+        EXPORT VowpalWabbitConfig
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+  endif()
+  
   if(VW_INSTALL)
     install(
-      TARGETS vw_c_wrapper
+      TARGETS vw vw-bin allreduce vw_io
       EXPORT VowpalWabbitConfig
       ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  
+    # VW target headers
+    install(
+      FILES ${vw_all_headers} ${CMAKE_CURRENT_BINARY_DIR}/config.h
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vowpalwabbit)
+    install(
+      FILES io/io_adapter.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vowpalwabbit/io
+    )
   endif()
-endif()
-
-if(VW_INSTALL)
-  install(
-    TARGETS vw vw-bin allreduce vw_io
-    EXPORT VowpalWabbitConfig
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-  # VW target headers
-  install(
-    FILES ${vw_all_headers} ${CMAKE_CURRENT_BINARY_DIR}/config.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vowpalwabbit)
-  install(
-    FILES io/io_adapter.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vowpalwabbit/io
-  )
 endif()

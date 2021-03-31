@@ -23,7 +23,6 @@ typedef int socklen_t;
 // windows doesn't define SOL_TCP and use an enum for the later, so can't check for its presence with a macro.
 #  define SOL_TCP IPPROTO_TCP
 
-int daemon(int /*a*/, int /*b*/) { exit(0); }
 
 // Starting with v142 the fix in the else block no longer works due to mismatching linkage. Going forward we should just
 // use the actual isocpp version.
@@ -33,10 +32,15 @@ int daemon(int /*a*/, int /*b*/) { exit(0); }
 #  else
 int VW_getpid() { return (int)::GetCurrentProcessId(); }
 #  endif
-
 #else
 #  include <netdb.h>
 #  define VW_getpid getpid
+#endif
+
+#if defined(_WIN32) || defined(__EMSCRIPTEN__)
+int daemon(int /*a*/, int /*b*/) { exit(0); }
+#else
+#pragma message (": Not emscripten")
 #endif
 
 #if defined(__FreeBSD__) || defined(__APPLE__)
