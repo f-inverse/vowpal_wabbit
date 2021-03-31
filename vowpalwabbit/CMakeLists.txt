@@ -358,9 +358,9 @@ if (EMSCRIPTEN)
   add_executable(vw ${vw_all_sources} ${vw_all_headers})
   set_target_properties(vw
     PROPERTIES
-    LINK_FLAGS "-s EXPORT_ALL=1 --no-entry"
     SUFFIX ".js"
-    COMPILE_FLAGS "-s WASM=1 -s EXPORT_ALL=1")
+    COMPILE_FLAGS "-s USE_PTHREADS=1 -s WASM=1 -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"cwrap\", \"allocate\", \"intArrayFromString\"]' -s ASSERTIONS=1 -pthread"
+    LINK_FLAGS "-s LLD_REPORT_UNDEFINED -pthread -s MODULARIZE=1 -s EXPORT_NAME=vw --no-entry")
 else()
   add_library(vw STATIC ${vw_all_sources} ${vw_all_headers})
   add_library(VowpalWabbit::vw ALIAS vw)
@@ -441,7 +441,7 @@ if(WARNING_AS_ERROR)
   endif(MSVC)
 endif(WARNING_AS_ERROR)
 
-if(NOT WIN32)
+if (NOT WIN32 AND NOT __EMSCRIPTEN__)
   add_executable(active_interactor active_interactor.cc)
 
   if(GCOV)
