@@ -356,11 +356,11 @@ endif()
 
 if (EMSCRIPTEN)
   add_executable(vw ${vw_all_sources} ${vw_all_headers})
+  set(VW_LINKER_OPTIONS -sLLD_REPORT_UNDEFINED -pthread -sMODULARIZE=1 -sEXPORT_NAME=vw --no-entry)
+  target_link_options(vw PRIVATE ${VW_LINKER_OPTIONS})
   set_target_properties(vw
     PROPERTIES
-    SUFFIX ".js"
-    COMPILE_FLAGS "-s USE_PTHREADS=1 -s WASM=1 -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"cwrap\", \"allocate\", \"intArrayFromString\"]' -s ASSERTIONS=1 -pthread"
-    LINK_FLAGS "-s LLD_REPORT_UNDEFINED -pthread -s MODULARIZE=1 -s EXPORT_NAME=vw --no-entry")
+    SUFFIX ".js")
 else()
   add_library(vw STATIC ${vw_all_sources} ${vw_all_headers})
   add_library(VowpalWabbit::vw ALIAS vw)
