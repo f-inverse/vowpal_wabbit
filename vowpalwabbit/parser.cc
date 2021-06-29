@@ -54,8 +54,8 @@ int VW_getpid() { return (int)::GetCurrentProcessId(); }
 #include "constant.h"
 #include "vw.h"
 #include "interactions.h"
+#include "shared_data.h"
 #include "vw_exception.h"
-#include "parse_example_json.h"
 #include "parse_dispatch_loop.h"
 #include "parse_args.h"
 #include "io/io_adapter.h"
@@ -134,37 +134,14 @@ void set_string_reader(vw& all)
 
 bool is_currently_json_reader(const vw& all)
 {
-  return all.example_parser->reader == &read_features_json<true> ||
-      all.example_parser->reader == &read_features_json<false>;
+  return false;
 }
 
 bool is_currently_dsjson_reader(const vw& all)
 {
-  return is_currently_json_reader(all) && all.example_parser->decision_service_json;
+  return false;
 }
 
-void set_json_reader(vw& all, bool dsjson = false)
-{
-  // TODO: change to class with virtual method
-  // --invert_hash requires the audit parser version to save the extra information.
-  if (all.audit || all.hash_inv)
-  {
-    all.example_parser->reader = &read_features_json<true>;
-    all.example_parser->text_reader = &line_to_examples_json<true>;
-    all.example_parser->audit = true;
-  }
-  else
-  {
-    all.example_parser->reader = &read_features_json<false>;
-    all.example_parser->text_reader = &line_to_examples_json<false>;
-    all.example_parser->audit = false;
-  }
-
-  all.example_parser->decision_service_json = dsjson;
-
-  if (dsjson && all.options->was_supplied("extra_metrics"))
-  { all.example_parser->metrics = VW::make_unique<dsjson_metrics>(); }
-}
 
 void set_daemon_reader(vw& all, bool json = false, bool dsjson = false)
 {
@@ -179,7 +156,6 @@ void set_daemon_reader(vw& all, bool json = false, bool dsjson = false)
   }
   else if (json || dsjson)
   {
-    set_json_reader(all, dsjson);
   }
   else
   {
@@ -589,7 +565,6 @@ void enable_sources(vw& all, bool quiet, size_t passes, input_options& input_opt
                  "future version. Use `--chain_hash` to use new behavior and silence this warning."
               << endl;
         }
-        set_json_reader(all, input_options.dsjson);
       }
 #ifdef BUILD_FLATBUFFERS
       else if (input_options.flatbuffer)

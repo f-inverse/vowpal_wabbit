@@ -2,7 +2,6 @@
 // individual contributors. All rights reserved. Released under a BSD (revised)
 // license as described in the file LICENSE.
 #include "io_buf.h"
-#include "io/logger.h"
 
 size_t io_buf::buf_read(char*& pointer, size_t n)
 {
@@ -124,7 +123,7 @@ void io_buf::flush()
   {
     auto bytes_written = output_files[0]->write(_buffer._begin, unflushed_bytes_count());
     if (bytes_written != static_cast<ssize_t>(unflushed_bytes_count()))
-    { VW::io::logger::errlog_error("error, failed to write example"); }
+    { }
     head = _buffer._begin;
     output_files[0]->flush();
   }

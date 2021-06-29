@@ -6,7 +6,6 @@
 #include "unique_sort.h"
 #include "global_data.h"
 #include "vw.h"
-#include "io/logger.h"
 
 constexpr size_t int_size = 11;
 constexpr size_t char_size = 2;
@@ -92,7 +91,6 @@ int VW::read_example_from_cache(
     unsigned char index = 0;
     if ((temp = input.buf_read(c, sizeof(index) + sizeof(size_t))) < sizeof(index) + sizeof(size_t))
     {
-      VW::io::logger::errlog_error("truncated example! {} {} ", temp, char_size + sizeof(size_t));
       return 0;
     }
 
@@ -107,7 +105,6 @@ int VW::read_example_from_cache(
     total += storage;
     if (input.buf_read(c, storage) < storage)
     {
-      VW::io::logger::errlog_error("truncated example! wanted: {} bytes ", storage);
       return 0;
     }
 

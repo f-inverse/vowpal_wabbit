@@ -111,32 +111,6 @@ private:
   file_adapter _stdout_file;
 };
 
-struct gzip_file_adapter : public writer, public reader
-{
-  gzip_file_adapter(const char* filename, file_mode mode);
-  gzip_file_adapter(int file_descriptor, file_mode mode);
-  ~gzip_file_adapter();
-
-  ssize_t read(char* buffer, size_t num_bytes) override;
-  ssize_t write(const char* buffer, size_t num_bytes) override;
-  void reset() override;
-
-private:
-  gzFile _gz_file;
-  file_mode _mode;
-};
-
-struct gzip_stdio_adapter : public writer, public reader
-{
-  gzip_stdio_adapter();
-  ~gzip_stdio_adapter();
-  ssize_t read(char* buffer, size_t num_bytes) override;
-  ssize_t write(const char* buffer, size_t num_bytes) override;
-
-private:
-  gzFile _gz_stdin;
-  gzFile _gz_stdout;
-};
 
 struct custom_func_writer : public writer
 {
@@ -186,19 +160,6 @@ std::unique_ptr<reader> open_file_reader(const std::string& file_path)
   return std::unique_ptr<reader>(new file_adapter(file_path.c_str(), file_mode::read));
 }
 
-std::unique_ptr<writer> open_compressed_file_writer(const std::string& file_path)
-{
-  return std::unique_ptr<writer>(new gzip_file_adapter(file_path.c_str(), file_mode::write));
-}
-
-std::unique_ptr<reader> open_compressed_file_reader(const std::string& file_path)
-{
-  return std::unique_ptr<reader>(new gzip_file_adapter(file_path.c_str(), file_mode::read));
-}
-
-std::unique_ptr<reader> open_compressed_stdin() { return std::unique_ptr<reader>(new gzip_stdio_adapter()); }
-
-std::unique_ptr<writer> open_compressed_stdout() { return std::unique_ptr<writer>(new gzip_stdio_adapter()); }
 
 std::unique_ptr<reader> open_stdin() { return std::unique_ptr<reader>(new stdio_adapter); }
 
@@ -349,75 +310,6 @@ file_adapter::~file_adapter()
   }
 }
 
-//
-// gzip_file_adapter
-//
-
-gzip_file_adapter::gzip_file_adapter(const char* filename, file_mode mode) : reader(true /*is_resettable*/), _mode(mode)
-{
-  auto file_mode_arg = _mode == file_mode::read ? "rb" : "wb";
-  _gz_file = gzopen(filename, file_mode_arg);
-  // TODO test for failure
-}
-
-gzip_file_adapter::gzip_file_adapter(int file_descriptor, file_mode mode) : reader(true /*is_resettable*/), _mode(mode)
-{
-  auto file_mode_arg = _mode == file_mode::read ? "rb" : "wb";
-  _gz_file = gzdopen(file_descriptor, file_mode_arg);
-}
-
-gzip_file_adapter::~gzip_file_adapter() { gzclose(_gz_file); }
-
-ssize_t gzip_file_adapter::read(char* buffer, size_t num_bytes)
-{
-  assert(_mode == file_mode::read);
-
-  auto num_read = gzread(_gz_file, buffer, static_cast<unsigned int>(num_bytes));
-  return (num_read > 0) ? static_cast<size_t>(num_read) : 0;
-}
-
-ssize_t gzip_file_adapter::write(const char* buffer, size_t num_bytes)
-{
-  assert(_mode == file_mode::write);
-
-  auto num_written = gzwrite(_gz_file, buffer, static_cast<unsigned int>(num_bytes));
-  return (num_written > 0) ? static_cast<size_t>(num_written) : 0;
-}
-
-void gzip_file_adapter::reset() { gzseek(_gz_file, 0, SEEK_SET); }
-
-//
-// gzip_stdio_adapter
-//
-
-gzip_stdio_adapter::gzip_stdio_adapter() : reader(false /*is_resettable*/)
-{
-#ifdef _WIN32
-  _gz_stdin = gzdopen(_fileno(stdin), "rb");
-  _gz_stdout = gzdopen(_fileno(stdout), "wb");
-#else
-  _gz_stdin = gzdopen(fileno(stdin), "rb");
-  _gz_stdout = gzdopen(fileno(stdout), "wb");
-#endif
-}
-
-gzip_stdio_adapter::~gzip_stdio_adapter()
-{
-  gzclose(_gz_stdin);
-  gzclose(_gz_stdout);
-}
-
-ssize_t gzip_stdio_adapter::read(char* buffer, size_t num_bytes)
-{
-  auto num_read = gzread(_gz_stdin, buffer, static_cast<unsigned int>(num_bytes));
-  return (num_read > 0) ? static_cast<size_t>(num_read) : 0;
-}
-
-ssize_t gzip_stdio_adapter::write(const char* buffer, size_t num_bytes)
-{
-  auto num_written = gzwrite(_gz_stdout, buffer, static_cast<unsigned int>(num_bytes));
-  return (num_written > 0) ? static_cast<size_t>(num_written) : 0;
-}
 
 //
 // vector_writer
