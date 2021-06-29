@@ -16,8 +16,6 @@
 #include "fast_pow10.h"
 #include "future_compat.h"
 
-#include "io/logger.h"
-
 // chop up the string into a v_array or any compatible container of VW::string_view.
 template <typename ContainerT>
 void tokenize(char delim, VW::string_view s, ContainerT& ret, bool allow_empty = false)
@@ -117,7 +115,6 @@ inline float float_of_string(VW::string_view s)
   float f = parseFloat(s.begin(), end_idx, s.end());
   if ((end_idx == 0 && s.size() > 0) || std::isnan(f))
   {
-    VW::io::logger::log_warn("warning: {} is not a good float, replacing with 0", s);
     f = 0;
   }
   return f;
@@ -129,7 +126,6 @@ inline int int_of_string(VW::string_view s, char*& end)
   int i = strtol(s.begin(), &end, 10);
   if (end <= s.begin() && s.size() > 0)
   {
-    VW::io::logger::log_warn("warning: {} is not a good int, replacing with 0", s);
     i = 0;
   }
 

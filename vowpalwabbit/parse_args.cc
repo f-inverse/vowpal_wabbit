@@ -109,7 +109,6 @@
 #include "io/io_adapter.h"
 #include "io/custom_streambuf.h"
 #include "io/owning_stream.h"
-#include "io/logger.h"
 
 #ifdef BUILD_EXTERNAL_PARSER
 #  include "parse_example_binary.h"
@@ -118,8 +117,6 @@
 using std::cout;
 using std::endl;
 using namespace VW::config;
-
-namespace logger = VW::io::logger;
 
 //
 // Does std::string end with a certain substring?
@@ -209,10 +206,6 @@ void parse_dictionary_argument(vw& all, const std::string& str)
 
   uint64_t fd_hash = hash_file_contents(file_adapter.get());
 
-  if (!all.logger.quiet)
-    *(all.trace_message) << "scanned dictionary '" << s << "' from '" << fname << "', hash=" << std::hex << fd_hash
-                         << std::dec << endl;
-
   // see if we've already read this dictionary
   for (size_t id = 0; id < all.loaded_dictionaries.size(); id++)
   {
@@ -290,10 +283,6 @@ void parse_dictionary_argument(vw& all, const std::string& str)
   } while ((rc != EOF) && (nread > 0));
   free(buffer);
   VW::dealloc_examples(ec, 1);
-
-  if (!all.logger.quiet)
-    *(all.trace_message) << "dictionary " << s << " contains " << map->size() << " item"
-                         << (map->size() == 1 ? "" : "s") << endl;
 
   all.namespace_dictionaries[static_cast<size_t>(ns)].push_back(map);
   dictionary_info info = {s.to_string(), fd_hash, map};
@@ -374,10 +363,6 @@ void parse_diagnostics(options_i& options, vw& all)
   options.add_and_parse(diagnostic_group);
 
   if (help) { all.logger.quiet = true; }
-
-  if(all.logger.quiet) logger::log_set_level(logger::log_level::off);
-
-  if (options.was_supplied("limit_output")) logger::set_max_output(all.logger.upper_limit);
 
   // pass all.logger.quiet around
   if (all.all_reduce) all.all_reduce->quiet = all.logger.quiet;
@@ -598,7 +583,6 @@ std::string spoof_hex_encoded_namespaces(const std::string& arg)
       }
       else
       {
-        logger::errlog_warn("Possibly malformed hex representation of a namespace: '\\x{}'", substr);
         res.push_back(arg[pos++]);
       }
     }
@@ -1768,7 +1752,6 @@ vw* initialize(std::unique_ptr<options_i, options_deleter_type> options, io_buf*
     trace_message_t trace_listener, void* trace_context)
 {
   // Set up logger as early as possible
-  logger::initialize_logger();
   vw& all = parse_args(std::move(options), trace_listener, trace_context);
 
   try
@@ -1997,7 +1980,6 @@ void finish(vw& all, bool delete_all)
   }
 
   metrics::output_metrics(all);
-  logger::log_summary();
 
   if (delete_all) delete &all;
 
